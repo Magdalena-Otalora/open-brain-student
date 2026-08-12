@@ -74,15 +74,70 @@ function jsonRpcError(id: unknown, code: number, message: string) {
 async function callTool(name: string, args: Record<string, unknown>) {
   if (name === "search_thoughts") {
     const query = String(args.query ?? "");
-    const { data, error } = await supabase
-      .from("thoughts")
-      .select("id, content, created_at")
-      .ilike("content", `%${query}%`)
-      .order("created_at", { ascending: false })
-      .limit(10);
+
+    // Convert the query text into an embedding so we can compare meaning,
+    // not just matching words.
+    const embResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-embedding`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({ text: query }),
+    });
+    const { embedding } = await embResponse.json();
+
+    if (!embedding) {
+      throw new Error("Could not generate an embedding for the search query.");
+    }
+
+    const { data, error } = await supabase.rpc("search_thoughts", {
+      query_embedding: embedding,
+      match_threshold: 0.3,
+      match_count: 10,
+    });
 
     if (error) throw new Error(error.message);
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+
+    // For each direct match, also pull its graph neighbors from thought_links
+    // (checking both directions, since a link can be stored either way) so the
+    // caller can see not just what matched the query, but what those matches
+    // are connected to.
+    const resultsWithLinks = await Promise.all(
+      (data ?? []).map(async (thought: { id: string; [key: string]: unknown }) => {
+        const { data: links } = await supabase
+          .from("thought_links")
+          .select("source_thought_id, target_thought_id, similarity_score")
+          .or(`source_thought_id.eq.${thought.id},target_thought_id.eq.${thought.id}`);
+
+        const neighborIds = (links ?? []).map((l) =>
+          l.source_thought_id === thought.id ? l.target_thought_id : l.source_thought_id
+        );
+
+        if (neighborIds.length === 0) {
+          return { ...thought, linked_thoughts: [] };
+        }
+
+        const { data: neighborThoughts } = await supabase
+          .from("thoughts")
+          .select("id, content")
+          .in("id", neighborIds);
+
+        const linked_thoughts = (links ?? []).map((l) => {
+          const neighborId = l.source_thought_id === thought.id ? l.target_thought_id : l.source_thought_id;
+          const neighbor = neighborThoughts?.find((n) => n.id === neighborId);
+          return {
+            id: neighborId,
+            content: neighbor?.content ?? null,
+            similarity_score: l.similarity_score,
+          };
+        });
+
+        return { ...thought, linked_thoughts };
+      })
+    );
+
+    return { content: [{ type: "text", text: JSON.stringify(resultsWithLinks, null, 2) }] };
   }
 
   if (name === "list_recent") {
