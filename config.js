@@ -1,2 +1,2 @@
 const SUPABASE_URL = 'https://fakxdsqjkrjjwbjiogbe.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZha3hkc3Fqa3JqandiamlvZ2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NzA5ODksImV4cCI6MjA5NzA0Njk4OX0.Ua-OT_Vc6EQGTWH0wbQ7yTiw-9XC4kQKbqyvfyYI_5g'
+const SUPABASE_ANON_KEY = 'sb_publishable_SpA-H00S7H8SqxdptSR3iA_HkiqwkDa'
