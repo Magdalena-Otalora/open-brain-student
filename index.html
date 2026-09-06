@@ -118,6 +118,7 @@
     <div class="status"><span class="dot" id="dot"></span><span id="statusText"></span></div>
     <span class="status" id="spend" title=""></span>
     <button class="mini" id="langBtn">ES</button>
+    <button class="mini" id="changePwBtn">change password</button>
     <button class="mini" id="signout">sign out</button>
   </header>
 
@@ -228,6 +229,9 @@ const T = {
     noAccount:'No account yet?', haveAccount:'Already have one?', createOne:'Create one',
     connecting:'connecting…', connected:'connected', dbError:'database error',
     signOut:'sign out',
+    changePw:'change password',
+    newPwPrompt:'Enter a new password (at least 6 characters):',
+    pwChanged:'Password changed.',
     tabs:['✏️ Write','🎙️ Voice','📹 YouTube','📄 PDF','🔗 Link','🔍 Search','🕐 Recent'],
     writeHint:'Anything worth remembering. Ctrl+Enter saves.',
     writePh:"What's on your mind?",
@@ -283,6 +287,9 @@ const T = {
     noAccount:'¿Todavía no tienes cuenta?', haveAccount:'¿Ya tienes una?', createOne:'Crear una',
     connecting:'conectando…', connected:'conectado', dbError:'error de base de datos',
     signOut:'salir',
+    changePw:'cambiar contraseña',
+    newPwPrompt:'Escribe una nueva contraseña (mínimo 6 caracteres):',
+    pwChanged:'Contraseña cambiada.',
     tabs:['✏️ Escribir','🎙️ Voz','📹 YouTube','📄 PDF','🔗 Liga','🔍 Buscar','🕐 Recientes'],
     writeHint:'Lo que valga la pena recordar. Ctrl+Enter guarda.',
     writePh:'¿Qué estás pensando?',
@@ -350,6 +357,7 @@ function applyLanguage(){
   txt('authSwitchText', signingUp ? t.haveAccount : t.noAccount);
   txt('authSwitch', signingUp ? t.signIn : t.createOne);
   txt('signout', t.signOut);
+  txt('changePwBtn', t.changePw);
 
   document.querySelectorAll('nav button').forEach((b,i) => { b.textContent = t.tabs[i]; });
 
@@ -445,6 +453,14 @@ $('authBtn').onclick = async () => {
 };
 
 $('signout').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+$('changePwBtn').onclick = async () => {
+  const newPw = prompt(t.newPwPrompt);
+  if (!newPw) return;
+  if (newPw.length < 6) return alert(t.shortPw);
+  const { error } = await sb.auth.updateUser({ password: newPw });
+  alert(error ? error.message : t.pwChanged);
+};
 
 sb.auth.onAuthStateChange((_e, session) => {
   user = session?.user ?? null;
